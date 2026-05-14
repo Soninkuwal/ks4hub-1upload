@@ -3,69 +3,76 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <title>Image Manager</title>
-
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<div class="container">
-
-<h1>📁 Image Manager</h1>
-
-<!-- Create Folder -->
-<div class="card">
-
-<h2>Create Folder</h2>
-
-<input type="text" id="folderName" placeholder="Enter Folder Name">
-
-<button onclick="createFolder()">
-Create Folder
-</button>
-
+<!-- Login/Register Section -->
+<div id="authContainer" class="container">
+    <!-- Login Form -->
+    <div id="loginView" class="card">
+        <h2>Login</h2>
+        <input type="email" id="loginEmail" placeholder="Email" required>
+        <input type="password" id="loginPassword" placeholder="Password" required>
+        <button onclick="loginUser()">Login</button>
+        <p>Don't have an account? <a href="#" onclick="toggleView()">Register here</a></p>
+    </div>
+    <!-- Register Form -->
+    <div id="registerView" class="card" style="display:none;">
+        <h2>Register</h2>
+        <input type="text" id="registerName" placeholder="Your Name" required>
+        <input type="email" id="registerEmail" placeholder="Email" required>
+        <input type="password" id="registerPassword" placeholder="Password" required>
+        <button onclick="registerUser()">Register</button>
+        <p>Already have an account? <a href="#" onclick="toggleView()">Login here</a></p>
+    </div>
 </div>
 
-<!-- Select Folder -->
-<div class="card">
+<!-- Main App Container (hidden until logged in) -->
+<div id="appContainer" class="container" style="display:none;">
 
-<h2>Select Folder</h2>
+    <div class="user-info">
+        <span id="userName"></span>
+        <button id="logoutBtn" onclick="logoutUser()">Logout</button>
+    </div>
 
-<select id="folderSelect"></select>
+    <h1>📁 Image Manager</h1>
 
+    <!-- Create Folder -->
+    <div class="card">
+        <h2>Create Folder</h2>
+        <input type="text" id="folderName" placeholder="Enter Folder Name">
+        <button onclick="createFolder()">Create Folder</button>
+    </div>
+
+    <!-- Select Folder -->
+    <div class="card">
+        <h2>Select Folder to Upload</h2>
+        <select id="folderSelect"></select>
+    </div>
+
+    <!-- Upload Local -->
+    <div class="card">
+        <h2>Upload From Device</h2>
+        <input type="file" id="fileInput" accept="image/*">
+        <button onclick="uploadLocalImage()">Upload Image</button>
+    </div>
+    
+    <!-- Gallery -->
+    <div id="gallery"></div>
 </div>
 
-<!-- Upload Local -->
-<div class="card">
-
-<h2>Upload From Device</h2>
-
-<input type="file" id="fileInput" accept="image/*">
-
-<button onclick="uploadLocalImage()">
-Upload Image
-</button>
-
+<!-- Image Viewer Modal -->
+<div id="imageModal" class="modal">
+    <span class="close" onclick="closeModal()">&times;</span>
+    <img class="modal-content" id="modalImage">
 </div>
 
-<!-- Upload URL -->
-<div class="card">
-
-<h2>Upload Using URL</h2>
-
-<input type="text" id="imageUrl" placeholder="Paste Image URL">
-
-<button onclick="uploadUrlImage()">
-Upload URL Image
-</button>
-
-</div>
-
-<!-- Gallery -->
-<div id="gallery"></div>
-
-</div>
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore-compat.js"></script>
 
 <script src="script.js"></script>
 </body>
