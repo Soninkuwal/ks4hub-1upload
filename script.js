@@ -1,287 +1,182 @@
-// --- Firebase Configuration ---
-// अपनी Firebase प्रोजेक्ट सेटिंग्स से firebaseConfig ऑब्जेक्ट यहां पेस्ट करें
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyDwUXWpphu2Ts5ke5VXNyc1F7xZrYYAO_c",
-  authDomain: "ks4hub-upload.firebaseapp.com",
-  databaseURL: "https://ks4hub-upload-default-rtdb.firebaseio.com",
-  projectId: "ks4hub-upload",
-  storageBucket: "ks4hub-upload.firebasestorage.app",
-  messagingSenderId: "350120173481",
-  appId: "1:350120173481:web:46200b2c6eb0b3ce112eb8",
-  measurementId: "G-5PWJFKVKRN"
-};
+// script.js (Updated)
 
-// Initialize Firebase
-firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-const db = firebase.firestore();
+// APNA WORKER URL YAHA DAALEIN
+const WORKER_URL = "https://image-api.meenakanhaiyalal638.workers.dev"; 
 
-// --- Cloudflare Worker Configuration ---
-const CLOUDFLARE_WORKER_URL = "https://image-uploader.meenakanhaiyalal638.workers.dev/"; // अपने वर्कर का URL यहां डालें
+let folders = {}; // Yeh ab server se aayega
 
-// --- DOM Elements ---
-const authContainer = document.getElementById('authContainer');
-const appContainer = document.getElementById('appContainer');
-const loginView = document.getElementById('loginView');
-const registerView = document.getElementById('registerView');
-const userNameDisplay = document.getElementById('userName');
 const folderSelect = document.getElementById("folderSelect");
 const gallery = document.getElementById("gallery");
-const modal = document.getElementById('imageModal');
-const modalImg = document.getElementById('modalImage');
+const folderNameInput = document.getElementById("folderName");
 
-let currentUser = null;
-let userFolders = [];
+// --- DATA FETCHING AND RENDERING ---
 
-// --- Authentication ---
-
-function toggleView() {
-    loginView.style.display = loginView.style.display === 'none' ? 'block' : 'none';
-    registerView.style.display = registerView.style.display === 'none' ? 'block' : 'none';
-}
-
-function registerUser() {
-    const name = document.getElementById('registerName').value;
-    const email = document.getElementById('registerEmail').value;
-    const password = document.getElementById('registerPassword').value;
-
-    if (!name || !email || !password) {
-        alert("Please fill all fields.");
-        return;
+async function initializeApp() {
+    try {
+        const response = await fetch(`${WORKER_URL}/api/list`);
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        folders = await response.json();
+        updateFolderList();
+        renderGallery();
+    } catch (error) {
+        console.error("Failed to load images:", error);
+        alert("Could not load images from the server.");
     }
-
-    auth.createUserWithEmailAndPassword(email, password)
-        .then((userCredential) => {
-            const user = userCredential.user;
-            user.updateProfile({ displayName: name })
-                .then(() => {
-                    // Create a user document in Firestore to store folders
-                    db.collection('users').doc(user.uid).set({
-                        name: name,
-                        email: email,
-                        folders: ['General'] // Default folder
-                    })
-                    .then(() => {
-                        alert("Registration successful!");
-                    });
-                });
-        })
-        .catch((error) => alert(error.message));
-}
-
-function loginUser() {
-    const email = document.getElementById('loginEmail').value;
-    const password = document.getElementById('loginPassword').value;
-    auth.signInWithEmailAndPassword(email, password)
-        .catch((error) => alert(error.message));
-}
-
-function logoutUser() {
-    auth.signOut();
-}
-
-// Listen for auth state changes
-auth.onAuthStateChanged(user => {
-    if (user) {
-        // User is logged in
-        currentUser = user;
-        authContainer.style.display = 'none';
-        appContainer.style.display = 'block';
-        userNameDisplay.textContent = `Welcome, ${user.displayName || user.email}`;
-        loadUserData();
-    } else {
-        // User is logged out
-        currentUser = null;
-        authContainer.style.display = 'block';
-        appContainer.style.display = 'none';
-        gallery.innerHTML = "";
-        folderSelect.innerHTML = "";
-    }
-});
-
-// --- Data Management (Firestore) ---
-
-async function loadUserData() {
-    if (!currentUser) return;
-
-    // Load Folders
-    const userDoc = await db.collection('users').doc(currentUser.uid).get();
-    if (userDoc.exists) {
-        userFolders = userDoc.data().folders || ['General'];
-    } else {
-        userFolders = ['General'];
-        // If user doc doesn't exist, create it
-        await db.collection('users').doc(currentUser.uid).set({ folders: userFolders, name: currentUser.displayName, email: currentUser.email });
-    }
-    updateFolderList();
-
-    // Load Images
-    renderGallery();
 }
 
 function updateFolderList() {
     folderSelect.innerHTML = "";
-    userFolders.forEach(folder => {
-        const option = document.createElement("option");
-        option.value = folder;
-        option.textContent = folder;
+    const folderNames = Object.keys(folders);
+    
+    if (folderNames.length === 0) {
+        let option = document.createElement("option");
+        option.textContent = "No folders created yet";
+        option.disabled = true;
         folderSelect.appendChild(option);
-    });
+    } else {
+        folderNames.forEach(folder => {
+            let option = document.createElement("option");
+            option.value = folder;
+            option.textContent = folder;
+            folderSelect.appendChild(option);
+        });
+    }
 }
 
-async function createFolder() {
-    const folderNameInput = document.getElementById("folderName");
+function renderGallery() {
+    gallery.innerHTML = "";
+    for (let folder in folders) {
+        folders[folder].forEach(image => {
+            const box = document.createElement("div");
+            box.className = "image-box";
+
+            // image object has {name, url, path, sha}
+            box.innerHTML = `
+                <img src="${image.url}" alt="${image.name}" onclick="viewImage('${image.url}')">
+                <div class="folder-name">📁 ${folder}</div>
+                <div class="image-actions">
+                    <button class="action-btn" onclick="copyUrl('${image.url}')">Copy URL</button>
+                    <button class="action-btn delete-btn" onclick="deleteImage('${image.path}', '${image.sha}')">Delete</button>
+                </div>
+            `;
+            gallery.appendChild(box);
+        });
+    }
+}
+
+// --- USER ACTIONS ---
+
+// Note: Folder creation is handled by uploading an image to a new folder name.
+// GitHub creates folders automatically when you add a file to a path that doesn't exist.
+function createFolder() {
     const folderName = folderNameInput.value.trim();
     if (!folderName) {
         alert("Enter folder name");
         return;
     }
-    if (userFolders.includes(folderName)) {
-        alert("Folder already exists");
+    if (folders[folderName]) {
+        alert("Folder already exists.");
         return;
     }
 
-    userFolders.push(folderName);
-    await db.collection('users').doc(currentUser.uid).update({
-        folders: userFolders
-    });
-    
+    // Temporarily add to UI
+    folders[folderName] = [];
     updateFolderList();
+    folderSelect.value = folderName;
+    alert(`Folder "${folderName}" is ready. Upload an image to create it permanently.`);
     folderNameInput.value = "";
-    alert("Folder Created");
 }
 
-// --- Image Upload ---
+// In script.js
 
 async function uploadLocalImage() {
     const fileInput = document.getElementById("fileInput");
-    const file = fileInput.files[0];
     const selectedFolder = folderSelect.value;
+    const file = fileInput.files[0];
 
-    if (!file) {
-        alert("Select an image");
-        return;
-    }
     if (!selectedFolder) {
-        alert("Create or select a folder first");
+        alert("Please select or create a folder first.");
+        return;
+    }
+    if (!file) {
+        alert("Please select an image to upload.");
         return;
     }
 
-    const fileName = `${new Date().getTime()}-${file.name}`;
-    
     const formData = new FormData();
-    formData.append('image', file);
-    formData.append('fileName', fileName);
-    formData.append('folder', selectedFolder);
+    formData.append("file", file);
+    formData.append("folder", selectedFolder);
 
     try {
-        const response = await fetch(CLOUDFLARE_WORKER_URL, {
-            method: 'POST',
+        const response = await fetch(`${WORKER_URL}/api/upload`, {
+            method: "POST",
             body: formData,
         });
 
+        // Yeh line badli gayi hai
         if (!response.ok) {
-            throw new Error(`Upload failed: ${await response.text()}`);
+            // Server se actual error message nikal kar throw karein
+            const errorText = await response.text();
+            throw new Error(errorText || 'Upload failed with status: ' + response.status);
         }
-
-        const result = await response.json();
-        await addImageToFirestore(result.url, selectedFolder);
+        
         alert("Image uploaded successfully!");
-        fileInput.value = "";
-
+        fileInput.value = ""; // Clear file input
+        initializeApp(); // Refresh the gallery
     } catch (error) {
-        alert(`Error: ${error.message}`);
-        console.error(error);
+        console.error("Upload error:", error);
+        // Ab yahan par actual server error dikhega
+        alert("Error uploading image: " + error.message);
     }
 }
 
-async function addImageToFirestore(imageUrl, folder) {
-    if (!currentUser) return;
-    await db.collection('images').add({
-        uid: currentUser.uid,
-        url: imageUrl,
-        folder: folder,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    renderGallery(); // Refresh gallery
+// URL upload is complex on the backend. This is a placeholder.
+// The worker needs to fetch the URL, get the blob, and then upload.
+function uploadUrlImage() {
+    alert("Uploading from URL is an advanced feature and requires backend changes. Please use 'Upload From Device' for now.");
 }
 
+async function deleteImage(path, sha) {
+    if (!confirm("Are you sure you want to delete this image?")) {
+        return;
+    }
 
-// --- Gallery and Image Actions ---
-
-function renderGallery() {
-    if (!currentUser) return;
-    gallery.innerHTML = "Loading images...";
-
-    db.collection('images').where('uid', '==', currentUser.uid).orderBy('createdAt', 'desc').get()
-        .then(snapshot => {
-            gallery.innerHTML = "";
-            if (snapshot.empty) {
-                gallery.innerHTML = "<p>No images uploaded yet.</p>";
-                return;
-            }
-            snapshot.forEach(doc => {
-                const image = doc.data();
-                const imageId = doc.id;
-                const box = document.createElement("div");
-                box.className = "image-box";
-
-                box.innerHTML = `
-                    <img src="${image.url}" alt="User image" onclick="viewImage('${image.url}')">
-                    <div class="folder-name">📁 ${image.folder}</div>
-                    <div class="image-overlay">
-                        <button class="icon-btn" onclick="copyUrl('${image.url}')" title="Copy URL">📋</button>
-                        <button class="icon-btn" onclick="deleteImage('${imageId}', '${image.url}')" title="Delete">🗑️</button>
-                    </div>
-                `;
-                gallery.appendChild(box);
-            });
+    try {
+        const response = await fetch(`${WORKER_URL}/api/delete`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path, sha })
         });
+        
+        if (!response.ok) {
+            const errorResult = await response.text();
+            throw new Error(`Failed to delete: ${errorResult}`);
+        }
+
+        alert('Image deleted successfully!');
+        initializeApp(); // Refresh the gallery
+    } catch (error) {
+        console.error('Delete error:', error);
+        alert(`Error deleting image: ${error.message}`);
+    }
 }
 
 function copyUrl(url) {
     navigator.clipboard.writeText(url).then(() => {
         alert("Image URL copied to clipboard!");
     }).catch(err => {
+        console.error('Could not copy text: ', err);
         alert("Failed to copy URL.");
     });
 }
 
-async function deleteImage(docId, imageUrl) {
-    if (!confirm("Are you sure you want to delete this image? This cannot be undone.")) {
-        return;
-    }
-    
-    try {
-        // Delete from Firestore
-        await db.collection('images').doc(docId).delete();
-        
-        // Note: Deleting from GitHub is much more complex and requires another backend endpoint.
-        // For now, we are just deleting the reference in our database. The file will remain on GitHub.
-        alert("Image reference deleted!");
-        renderGallery();
-
-    } catch (error) {
-        alert("Error deleting image: " + error.message);
-    }
-}
-
-
 function viewImage(url) {
-    modal.style.display = "block";
-    modalImg.src = url;
+    // Simple implementation: open in a new tab
+    window.open(url, '_blank');
+    // For a modal/lightbox, you'd need more HTML/CSS/JS
 }
 
-function closeModal() {
-    modal.style.display = "none";
-}
-
-// --- Image Editing Tools (Placeholder) ---
-// Note: This is a very complex feature.
-// You would need a library like 'tui-image-editor' or 'cropper.js'.
-// This is a basic placeholder to show where you would start.
-function editImage(imageUrl) {
-    alert("Image editing is a planned feature and not yet implemented.");
-    // Example: window.location.href = `/editor.html?image=${imageUrl}`;
-}
+// --- INITIALIZATION ---
+initializeApp();
