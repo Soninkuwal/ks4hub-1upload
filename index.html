@@ -3,83 +3,68 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pro Image Manager</title>
+
+<title>Image Manager</title>
+
 <link rel="stylesheet" href="style.css">
-<!-- Iconos para una mejor interfaz -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
 
-<!-- ===== BARRA SUPERIOR (HEADER) ===== -->
-<header class="top-bar">
-    <div class="container">
-        <div class="logo">
-            <h1><i class="fas fa-images"></i> Pro Image Manager</h1>
-        </div>
-        <div class="controls">
-            <select id="folderSelect">
-                <option value="all">All Images</option>
-            </select>
-            <button id="openUploadModalBtn"><i class="fas fa-upload"></i> Upload</button>
-        </div>
-    </div>
-</header>
+<div class="container">
 
-<!-- ===== GALERÍA PRINCIPAL ===== -->
-<main class="container">
-    <div id="gallery-info">
-        <h2 id="current-folder-title">All Images</h2>
-        <p id="image-count">Loading images...</p>
-    </div>
-    <div id="gallery">
-        <!-- Las imágenes se cargarán aquí -->
-    </div>
-</main>
+<h1>📁 Image Manager</h1>
 
-<!-- ===== MODAL PARA SUBIR ARCHIVOS ===== -->
-<div id="uploadModal" class="modal">
-    <div class="modal-content">
-        <span class="close-btn" id="closeUploadModalBtn">&times;</span>
-        <h2><i class="fas fa-cloud-upload-alt"></i> Upload New File</h2>
+<!-- Create Folder -->
+<div class="card">
 
-        <!-- Card para crear carpeta -->
-        <div class="upload-card">
-            <h3>1. Create a New Folder (Optional)</h3>
-            <div class="form-group">
-                <input type="text" id="folderName" placeholder="Enter New Folder Name">
-                <button onclick="createFolder()">Create Folder</button>
-            </div>
-        </div>
-        
-        <!-- Card para subir archivo -->
-        <div class="upload-card">
-            <h3>2. Select Folder & Upload File</h3>
-            <p>You can upload images, PDFs, APKs, etc.</p>
-            <select id="uploadFolderSelect"></select>
-            <input type="file" id="fileInput">
-            <button onclick="uploadLocalImage()" id="uploadBtn">
-                <i class="fas fa-upload"></i> Upload File
-            </button>
-            <div class="progress-container" id="progressContainer" style="display:none;">
-                <div class="progress-bar" id="progressBar"></div>
-                <span id="progressText">0%</span>
-            </div>
-        </div>
+<h2>Create Folder</h2>
 
-    </div>
+<input type="text" id="folderName" placeholder="Enter Folder Name">
+
+<button onclick="createFolder()">
+Create Folder
+</button>
+
 </div>
 
-<!-- ===== MODAL PARA VISTA PREVIA (LIGHTBOX) ===== -->
-<div id="imagePreviewModal" class="modal">
-    <div class="modal-content lightbox">
-         <span class="close-btn" id="closePreviewModalBtn">&times;</span>
-        <img id="previewImage" src="" alt="Image Preview">
-        <div class="lightbox-actions">
-            <button id="copyUrlBtn"><i class="fas fa-copy"></i> Copy URL</button>
-            <button id="editBtn"><i class="fas fa-edit"></i> Edit</button>
-            <button id="deleteBtn" class="delete-btn"><i class="fas fa-trash"></i> Delete</button>
-        </div>
-    </div>
+<!-- Select Folder -->
+<div class="card">
+
+<h2>Select Folder</h2>
+
+<select id="folderSelect"></select>
+
+</div>
+
+<!-- Upload Local -->
+<div class="card">
+
+<h2>Upload From Device</h2>
+
+<input type="file" id="fileInput" accept="image/*">
+
+<button onclick="uploadLocalImage()">
+Upload Image
+</button>
+
+</div>
+
+<!-- Upload URL -->
+<div class="card">
+
+<h2>Upload Using URL</h2>
+
+<input type="text" id="imageUrl" placeholder="Paste Image URL">
+
+<button onclick="uploadUrlImage()">
+Upload URL Image
+</button>
+
+</div>
+
+<!-- Gallery -->
+<div id="gallery"></div>
+
 </div>
 
 <script src="script.js"></script>

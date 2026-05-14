@@ -1,133 +1,79 @@
-// script.js (Completamente Renovado)
+// script.js (Updated)
 
-// ----- CONFIGURACIÓN -----
-// REEMPLAZA ESTA URL CON LA URL DE TU CLOUDFLARE WORKER
-const WORKER_URL = "https://image-api.meenakanhaiyalal638.workers.dev";
+// APNA WORKER URL YAHA DAALEIN
+const WORKER_URL = "https://image-api.meenakanhaiyalal638.workers.dev"; 
 
-// ----- ESTADO DE LA APLICACIÓN -----
-let folders = {}; // Almacena toda la estructura de carpetas e imágenes
-let currentFolderFilter = 'all'; // Carpeta seleccionada para filtrar
+let folders = {}; // Yeh ab server se aayega
 
-// ----- ELEMENTOS DEL DOM -----
-// Selectores de carpetas
 const folderSelect = document.getElementById("folderSelect");
-const uploadFolderSelect = document.getElementById("uploadFolderSelect");
-// Galería
 const gallery = document.getElementById("gallery");
-const galleryInfoTitle = document.getElementById("current-folder-title");
-const imageCount = document.getElementById("image-count");
-// Modal de subida
-const uploadModal = document.getElementById("uploadModal");
-const openUploadModalBtn = document.getElementById("openUploadModalBtn");
-const closeUploadModalBtn = document.getElementById("closeUploadModalBtn");
 const folderNameInput = document.getElementById("folderName");
-const fileInput = document.getElementById("fileInput");
-const uploadBtn = document.getElementById("uploadBtn");
-const progressContainer = document.getElementById("progressContainer");
-const progressBar = document.getElementById("progressBar");
-const progressText = document.getElementById("progressText");
-// Modal de vista previa (Lightbox)
-const previewModal = document.getElementById("imagePreviewModal");
-const closePreviewModalBtn = document.getElementById("closePreviewModalBtn");
-const previewImage = document.getElementById("previewImage");
-const copyUrlBtn = document.getElementById("copyUrlBtn");
-const editBtn = document.getElementById("editBtn");
-const deleteBtn = document.getElementById("deleteBtn");
 
-// ----- INICIALIZACIÓN -----
-document.addEventListener('DOMContentLoaded', initializeApp);
+// --- DATA FETCHING AND RENDERING ---
 
 async function initializeApp() {
     try {
         const response = await fetch(`${WORKER_URL}/api/list`);
-        if (!response.ok) throw new Error('Network response was not ok');
-        
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
         folders = await response.json();
-        updateFolderLists();
+        updateFolderList();
         renderGallery();
     } catch (error) {
         console.error("Failed to load images:", error);
-        gallery.innerHTML = "<p>Could not load images from the server. Please check the console.</p>";
+        alert("Could not load images from the server.");
     }
 }
 
-// ----- RENDERIZADO Y ACTUALIZACIÓN DE UI -----
-
-function updateFolderLists() {
-    // Limpiar listas existentes
-    folderSelect.innerHTML = '<option value="all">All Images</option>';
-    uploadFolderSelect.innerHTML = "";
+function updateFolderList() {
+    folderSelect.innerHTML = "";
+    const folderNames = Object.keys(folders);
     
-    const folderNames = Object.keys(folders).sort();
-
     if (folderNames.length === 0) {
         let option = document.createElement("option");
         option.textContent = "No folders created yet";
         option.disabled = true;
-        uploadFolderSelect.appendChild(option);
+        folderSelect.appendChild(option);
     } else {
         folderNames.forEach(folder => {
-            // Añadir al filtro principal
-            let filterOption = document.createElement("option");
-            filterOption.value = folder;
-            filterOption.textContent = folder;
-            folderSelect.appendChild(filterOption);
-
-            // Añadir al selector del modal de subida
-            let uploadOption = document.createElement("option");
-            uploadOption.value = folder;
-            uploadOption.textContent = folder;
-            uploadFolderSelect.appendChild(uploadOption);
+            let option = document.createElement("option");
+            option.value = folder;
+            option.textContent = folder;
+            folderSelect.appendChild(option);
         });
     }
-    folderSelect.value = currentFolderFilter;
 }
-
 
 function renderGallery() {
     gallery.innerHTML = "";
-    let imagesToRender = [];
-    let totalImageCount = 0;
+    for (let folder in folders) {
+        folders[folder].forEach(image => {
+            const box = document.createElement("div");
+            box.className = "image-box";
 
-    if (currentFolderFilter === 'all') {
-        galleryInfoTitle.textContent = "All Images";
-        for (let folder in folders) {
-            imagesToRender.push(...folders[folder]);
-        }
-    } else {
-        galleryInfoTitle.textContent = `📁 ${currentFolderFilter}`;
-        imagesToRender = folders[currentFolderFilter] || [];
+            // image object has {name, url, path, sha}
+            box.innerHTML = `
+                <img src="${image.url}" alt="${image.name}" onclick="viewImage('${image.url}')">
+                <div class="folder-name">📁 ${folder}</div>
+                <div class="image-actions">
+                    <button class="action-btn" onclick="copyUrl('${image.url}')">Copy URL</button>
+                    <button class="action-btn delete-btn" onclick="deleteImage('${image.path}', '${image.sha}')">Delete</button>
+                </div>
+            `;
+            gallery.appendChild(box);
+        });
     }
-    
-    totalImageCount = imagesToRender.length;
-    imageCount.textContent = `${totalImageCount} image${totalImageCount !== 1 ? 's' : ''} found.`;
-
-    if (imagesToRender.length === 0 && currentFolderFilter !== 'all') {
-        gallery.innerHTML = "<p>This folder is empty. Upload a file to see it here.</p>";
-        return;
-    }
-    
-    imagesToRender.forEach(image => {
-        const box = document.createElement("div");
-        box.className = "image-box";
-        box.innerHTML = `
-            <img src="${image.url}" alt="${image.name}" loading="lazy">
-            <div class="info">
-                <div class="folder-name">📁 ${image.path.split('/')[0]}</div>
-            </div>
-        `;
-        box.addEventListener('click', () => viewImage(image));
-        gallery.appendChild(box);
-    });
 }
 
+// --- USER ACTIONS ---
 
-// ----- ACCIONES DEL USUARIO -----
-
+// Note: Folder creation is handled by uploading an image to a new folder name.
+// GitHub creates folders automatically when you add a file to a path that doesn't exist.
 function createFolder() {
     const folderName = folderNameInput.value.trim();
     if (!folderName) {
-        alert("Please enter a folder name.");
+        alert("Enter folder name");
         return;
     }
     if (folders[folderName]) {
@@ -135,16 +81,19 @@ function createFolder() {
         return;
     }
 
+    // Temporarily add to UI
     folders[folderName] = [];
-    updateFolderLists();
-    uploadFolderSelect.value = folderName; // Seleccionar la nueva carpeta en el modal
-    alert(`Folder "${folderName}" is ready. Select it and upload an image to create it permanently on the server.`);
+    updateFolderList();
+    folderSelect.value = folderName;
+    alert(`Folder "${folderName}" is ready. Upload an image to create it permanently.`);
     folderNameInput.value = "";
 }
 
+// In script.js
 
 async function uploadLocalImage() {
-    const selectedFolder = uploadFolderSelect.value;
+    const fileInput = document.getElementById("fileInput");
+    const selectedFolder = folderSelect.value;
     const file = fileInput.files[0];
 
     if (!selectedFolder) {
@@ -152,7 +101,7 @@ async function uploadLocalImage() {
         return;
     }
     if (!file) {
-        alert("Please select a file to upload.");
+        alert("Please select an image to upload.");
         return;
     }
 
@@ -160,51 +109,37 @@ async function uploadLocalImage() {
     formData.append("file", file);
     formData.append("folder", selectedFolder);
 
-    // Lógica de subida con XMLHttpRequest para la barra de progreso
-    const xhr = new XMLHttpRequest();
-    
-    xhr.upload.addEventListener("progress", (event) => {
-        if (event.lengthComputable) {
-            const percentComplete = Math.round((event.loaded / event.total) * 100);
-            progressContainer.style.display = "block";
-            progressBar.style.width = percentComplete + "%";
-            progressText.textContent = percentComplete + "%";
+    try {
+        const response = await fetch(`${WORKER_URL}/api/upload`, {
+            method: "POST",
+            body: formData,
+        });
+
+        // Yeh line badli gayi hai
+        if (!response.ok) {
+            // Server se actual error message nikal kar throw karein
+            const errorText = await response.text();
+            throw new Error(errorText || 'Upload failed with status: ' + response.status);
         }
-    });
-
-    xhr.addEventListener("load", () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-            alert("File uploaded successfully!");
-            closeModal(uploadModal);
-            initializeApp(); // Recargar todo
-        } else {
-            alert(`Error uploading file: ${xhr.statusText} - ${xhr.responseText}`);
-        }
-        resetUploadForm();
-    });
-
-    xhr.addEventListener("error", () => {
-        alert("An error occurred during the upload. Please try again.");
-        resetUploadForm();
-    });
-
-    xhr.open("POST", `${WORKER_URL}/api/upload`);
-    uploadBtn.disabled = true;
-    uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
-    xhr.send(formData);
+        
+        alert("Image uploaded successfully!");
+        fileInput.value = ""; // Clear file input
+        initializeApp(); // Refresh the gallery
+    } catch (error) {
+        console.error("Upload error:", error);
+        // Ab yahan par actual server error dikhega
+        alert("Error uploading image: " + error.message);
+    }
 }
 
-function resetUploadForm() {
-    fileInput.value = "";
-    progressContainer.style.display = "none";
-    progressBar.style.width = "0%";
-    progressText.textContent = "0%";
-    uploadBtn.disabled = false;
-    uploadBtn.innerHTML = '<i class="fas fa-upload"></i> Upload File';
+// URL upload is complex on the backend. This is a placeholder.
+// The worker needs to fetch the URL, get the blob, and then upload.
+function uploadUrlImage() {
+    alert("Uploading from URL is an advanced feature and requires backend changes. Please use 'Upload From Device' for now.");
 }
 
 async function deleteImage(path, sha) {
-    if (!confirm("Are you sure you want to delete this file permanently? This cannot be undone.")) {
+    if (!confirm("Are you sure you want to delete this image?")) {
         return;
     }
 
@@ -216,70 +151,32 @@ async function deleteImage(path, sha) {
         });
         
         if (!response.ok) {
-            throw new Error(`Failed to delete: ${await response.text()}`);
+            const errorResult = await response.text();
+            throw new Error(`Failed to delete: ${errorResult}`);
         }
 
-        alert('File deleted successfully!');
-        closeModal(previewModal);
-        initializeApp(); // Recargar la galería
+        alert('Image deleted successfully!');
+        initializeApp(); // Refresh the gallery
     } catch (error) {
         console.error('Delete error:', error);
-        alert(`Error deleting file: ${error.message}`);
+        alert(`Error deleting image: ${error.message}`);
     }
 }
 
 function copyUrl(url) {
     navigator.clipboard.writeText(url).then(() => {
-        alert("URL copied to clipboard!");
+        alert("Image URL copied to clipboard!");
     }).catch(err => {
         console.error('Could not copy text: ', err);
         alert("Failed to copy URL.");
     });
 }
 
-function editImage(url) {
-    alert("Image editing is an advanced feature planned for a future update!");
-    // Aquí se podría integrar una librería como Cropper.js o Toast UI Image Editor
+function viewImage(url) {
+    // Simple implementation: open in a new tab
+    window.open(url, '_blank');
+    // For a modal/lightbox, you'd need more HTML/CSS/JS
 }
 
-
-// ----- MANEJO DE MODALES Y EVENTOS -----
-
-function viewImage(image) {
-    previewImage.src = image.url;
-    // Asignar acciones a los botones del lightbox
-    copyUrlBtn.onclick = () => copyUrl(image.url);
-    editBtn.onclick = () => editImage(image.url);
-    deleteBtn.onclick = () => deleteImage(image.path, image.sha);
-    
-    openModal(previewModal);
-}
-
-function openModal(modal) {
-    modal.style.display = "block";
-}
-
-function closeModal(modal) {
-    modal.style.display = "none";
-}
-
-// Event listener para el filtro de carpetas
-folderSelect.addEventListener('change', (e) => {
-    currentFolderFilter = e.target.value;
-    renderGallery();
-});
-
-// Event listeners para abrir/cerrar modales
-openUploadModalBtn.addEventListener('click', () => openModal(uploadModal));
-closeUploadModalBtn.addEventListener('click', () => closeModal(uploadModal));
-closePreviewModalBtn.addEventListener('click', () => closeModal(previewModal));
-
-// Cerrar modal al hacer clic fuera del contenido
-window.addEventListener('click', (event) => {
-    if (event.target == uploadModal) {
-        closeModal(uploadModal);
-    }
-    if (event.target == previewModal) {
-        closeModal(previewModal);
-    }
-});
+// --- INITIALIZATION ---
+initializeApp();
